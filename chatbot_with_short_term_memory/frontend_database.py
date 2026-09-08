@@ -71,7 +71,7 @@ st.sidebar.title("Langgraph Chatbot")
 if st.sidebar.button("New Chat"):
     reset_chat()  # Reset the chat and generate a new thread ID
 
-if st.sidebar.button("🗑️ Clear All Chats"):
+if st.sidebar.button("Clear All Chats"):
     delete_all_threads()  # Permanently wipe every saved conversation from the database
     st.session_state.chat_threads = []  # Empty the sidebar thread list
     st.session_state.chat_titles = {}  # Forget all thread titles
