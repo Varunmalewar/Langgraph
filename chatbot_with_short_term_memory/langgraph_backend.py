@@ -35,7 +35,11 @@ def chat_node(state : ChatState) :
         'messages':[response]
     }
 
-
+config1 = {
+    "configurable":{
+        "thread_id": "thread-1"
+    }
+}
 checkpointer = MemorySaver()
 graph = StateGraph(ChatState)
 
@@ -45,3 +49,6 @@ graph.add_edge(START,'chat_node')
 graph.add_edge('chat_node',END)
 
 workflow = graph.compile(checkpointer=checkpointer)
+
+
+
