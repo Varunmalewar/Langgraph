@@ -1,5 +1,6 @@
 # Virtual environment
 venv/
+.claude
 
 # Environment variables / secrets
 .env
