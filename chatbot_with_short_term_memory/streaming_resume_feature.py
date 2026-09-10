@@ -124,13 +124,17 @@ if user_input:
     
     with st.chat_message('assistant'):
         ai_message = st.write_stream(
-            message_chunk.text for message_chunk, meta_data in workflow.stream(
+            message_chunk.text
+            for message_chunk, meta_data in workflow.stream(
                 {
                     'messages': [HumanMessage(content=user_input)]
                 },
                 config=config1,
                 stream_mode = "messages"
             )
+            # stream only the LLM's answer: skip ToolMessages (raw tool
+            # output like the Alpha Vantage JSON) and tool-call chunks
+            if message_chunk.content and meta_data["langgraph_node"] == "chat_node"
         )
     st.session_state.message_history.append({"role":"assistant","content":ai_message})
 

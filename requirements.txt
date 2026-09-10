@@ -14,6 +14,9 @@ langchain-anthropic
 langchain-google-genai
 google-generativeai
 
+#DuckDuckGo search tool (runtime dependency of langchain_community.tools.ddg_search)
+ddgs
+
 #hugging Face integration 
 langchain-huggingface
 transformers

@@ -9,33 +9,76 @@ from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver 
 from langgraph.checkpoint.sqlite import SqliteSaver
 import sqlite3
+from langgraph.prebuilt import ToolNode , tools_condition
+from langchain_community.tools.ddg_search import DuckDuckGoSearchRun
+from langchain_core.tools import tool
+import requests
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(
-    model = "gemini-3.5-flash-lite",
+    model = "gemini-3.1-flash-lite",
     api_key = SecretStr(os.environ["GOOGLE_API_KEY"]),
 )
 
+
+search_tool = DuckDuckGoSearchRun(region = "us-en")
+
+@tool 
+def calculator(first_num : float, second_num : float , operation :str )->dict :
+    """Perform a basic arithmetic operation on two numbers . Supported operations : add , sub , mul , div
+    """
+    try:
+        if operation == "add":
+            result = first_num + second_num
+        elif operation == "sub":
+            result = first_num - second_num
+        elif operation == "mul":
+            result = first_num * second_num
+        elif operation == "div":
+            if second_num == 0:
+                return {"error": "Division by zero is not allowed."}
+            result = first_num / second_num
+        return {"first_num": first_num, "second_num": second_num, "operation": operation, "result": result}
+    except Exception as e:
+        return {"error": str(e)}
+
+@tool 
+def get_stock_price(symbol : str)->dict:
+    """Fetch latest stock price for a given symbol (e.g., AAPL for Apple Inc.) using Alpha Vantage API key in the url."""
+    url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={symbol}&apikey={os.environ['ALPHA_VANTAGE_API_KEY']}"
+    r = requests.get(url)
+    if r.status_code == 200:
+        return r.json()
+    else:
+        return {"error": f"Failed to fetch stock price for {symbol}. Status code: {r.status_code}"}
+
+
+
+tools = [search_tool, calculator, get_stock_price]
+llm_with_tools = llm.bind_tools(tools)
 
 class ChatState(TypedDict):
     messages : Annotated[list[BaseMessage], add_messages]
 
 
 def chat_node(state : ChatState) :
+    """LLm node that may answer or requests a tool call"""
     # take user query from state 
     messages = state['messages']
 
 
     # send tp the llm 
-    response = llm.invoke(messages)
+    response =  llm_with_tools.invoke(messages)
 
     # response store state 
     return{
         'messages':[response]
     }
+
+tool_node = ToolNode(tools)
 
 config1 = {
     "configurable":{
@@ -56,11 +99,16 @@ checkpointer = SqliteSaver(conn = connection)
 graph = StateGraph(ChatState)
 
 graph.add_node('chat_node',chat_node)
+graph.add_node("tools",tool_node)
 
 graph.add_edge(START,'chat_node')
+graph.add_conditional_edges("chat_node",tools_condition)
+graph.add_edge('tools','chat_node')
 graph.add_edge('chat_node',END)
 
 workflow = graph.compile(checkpointer=checkpointer)
+
+
 
 def retrieve_all_threads():
     all_threads = set()
@@ -83,4 +131,8 @@ def delete_all_threads():
     connection.commit()
 
 
-
+# from IPython.display import Image
+# png_bytes = workflow.get_graph().draw_mermaid_png()
+# with open(os.path.join(BASE_DIR, "graph.png"), "wb") as f:
+#     f.write(png_bytes)
+# print("Graph saved to:", os.path.join(BASE_DIR, "graph.png"))

@@ -1,10 +1,11 @@
 import streamlit as st 
 
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 import streamlit as st
 from langgraph_backend import workflow
 import uuid # har bar ek nayi id generate kar sakte ho 
 from langgraph_backend import retrieve_all_threads, delete_all_threads, workflow
+
 
 #***********************************utility function ********************************
 def generate_thread_id():
@@ -23,7 +24,20 @@ def add_thread(thread_id):
         st.session_state.chat_titles[thread_id] = "New Chat"  # Give the thread a default name until the first message arrives
 
 def get_thread_title(thread_id):
-    return st.session_state.chat_titles.get(thread_id, "New Chat")
+    # Use the in-session title if one was set (first message of this session)
+    title = st.session_state.chat_titles.get(thread_id)
+    if title and title != "New Chat":
+        return title
+    # Fall back to the first question the user asked in that thread,
+    # read from the persisted checkpoint (so old chats are named after restart too)
+    snapshot = load_conversation(thread_id)
+    for message in snapshot.values.get("messages", []):
+        if isinstance(message, HumanMessage) and extract_text(message.content).strip():
+            title = extract_text(message.content).strip()
+            title = title[:30] + "..." if len(title) > 30 else title
+            st.session_state.chat_titles[thread_id] = title  # cache so we read the DB only once per thread
+            return title
+    return "New Chat"  # thread exists but has no user messages yet
 
 def load_conversation(thread_id):
     return workflow.get_state(config={
@@ -91,7 +105,10 @@ for thread_id in st.session_state.chat_threads[::-1]:
         for message in messages:
             if isinstance(message, HumanMessage):
                 temp_messages.append({"role": "user", "content": extract_text(message.content)})
-            else:
+            elif isinstance(message, AIMessage) and extract_text(message.content).strip():
+                # show only AIMessages with actual text. This skips:
+                # - AIMessages that only request tool calls (empty text -> were rendering as empty bubbles)
+                # - ToolMessages with raw tool output like the Alpha Vantage JSON
                 temp_messages.append({"role": "assistant", "content": extract_text(message.content)})
         # Update the message history IN PLACE so the render loop below (which holds a
         # reference to the same list) sees the loaded conversation on this same run
@@ -133,13 +150,17 @@ if user_input:
     
     with st.chat_message('assistant'):
         ai_message = st.write_stream(
-            message_chunk.text for message_chunk, meta_data in workflow.stream(
+            message_chunk.text
+            for message_chunk, meta_data in workflow.stream(
                 {
                     'messages': [HumanMessage(content=user_input)]
                 },
                 config=config1,
                 stream_mode = "messages"
             )
+            # stream only the LLM's answer: skip ToolMessages (raw tool
+            # output like the Alpha Vantage JSON) and tool-call chunks
+            if message_chunk.content and meta_data["langgraph_node"] == "chat_node"
         )
     st.session_state.message_history.append({"role":"assistant","content":ai_message})
 
