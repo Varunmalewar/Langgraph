@@ -1,0 +1,52 @@
+## The Anatomy of Q, K, and V
+
+To understand self-attention, think of it as a sophisticated database retrieval system. In a standard Transformer, each input token is transformed into three distinct vectors: Query (Q), Key (K), and Value (V). These aren't static inputs; they are projections of the original token embedding created by multiplying it by three learned weight matrices—$W_Q$, $W_K$, and $W_V$.
+
+> **[IMAGE GENERATION FAILED]** Linear projections of input embeddings into Query (Q), Key (K), and Value (V) subspaces.
+>
+> **Alt:** Diagram showing input tokens being projected into Query, Key, and Value vectors via weight matrices.
+>
+> **Prompt:** Technical diagram showing a single vector input splitting into three separate vectors labeled Q, K, and V through transformation matrices Wq, Wk, and Wv. Minimalist style, clean lines, white background, high resolution.
+>
+> **Error:** 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 2.513445467s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_input_token_count', 'quotaId': 'GenerateContentInputTokensPerModelPerMinute-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash-preview-image'}}, {'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash-preview-image'}}, {'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'model': 'gemini-2.5-flash-preview-image', 'location': 'global'}}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '2s'}]}}
+
+
+### The Library Search Analogy
+Imagine you are in a massive library looking for information.
+*   **The Query (Q):** This is your search term or the specific question you are asking. It represents what the current token is "looking for" in other parts of the sentence.
+*   **The Key (K):** Think of this as the label on the spine of a book. It identifies what information the token contains. By calculating the dot product between your Query and all available Keys, the model determines how much "attention" it should pay to each specific token.
+*   **The Value (V):** This is the actual content inside the book. Once you have determined which keys are most relevant to your query, you extract the corresponding values to form your new, context-aware representation.
+
+## The Scaling Dot-Product Calculation
+
+At the heart of the Transformer architecture lies the Scaled Dot-Product Attention mechanism. Think of this as a sophisticated retrieval system: given an input vector, how much "attention" should it pay to every other vector in the sequence? We represent this using three learned projections: Queries (Q), Keys (K), and Values (V).
+
+> **[IMAGE GENERATION FAILED]** The computational steps of the Scaled Dot-Product Attention mechanism.
+>
+> **Alt:** Flowchart depicting the Scaled Dot-Product Attention sequence: Q*K^T, scaling, softmax, and weighted sum with V.
+>
+> **Prompt:** Flowchart showing matrix operations: input matrices Q and K multiplying, division by square root of dk, softmax function, and final multiplication with V. Professional data flow style.
+>
+> **Error:** 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 699.776793ms.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_input_token_count', 'quotaId': 'GenerateContentInputTokensPerModelPerMinute-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash-preview-image'}}, {'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash-preview-image'}}, {'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash-preview-image'}}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '0s'}]}}
+
+
+### The Mathematical Flow
+The process unfolds in a precise sequence of matrix operations:
+
+1.  **Similarity Scoring:** First, we compute the dot product of the Query matrix ($Q$) with the transpose of the Key matrix ($K^T$). This resulting matrix represents the raw alignment score between every token pair. A high value indicates that two tokens are highly relevant to one another in the current context.
+2.  **The Scaling Factor:** As the dimensionality of our vectors ($d_k$) grows, the magnitude of these dot products can become dangerously large. Large values push the subsequent softmax function into regions where gradients are extremely small, effectively stalling training. To prevent this, we divide the result by $\sqrt{d_k}$. This keeps the variance stable and ensures the model remains trainable.
+3.  **Normalization via Softmax:** We apply the softmax function to these scaled scores. This transforms the raw values into a probability distribution that sums to 1.0. Each row now contains the "attention weights," defining exactly how much focus a specific token should place on its neighbors.
+4.  **Value Aggregation:** Finally, we multiply these weights by the Value matrix ($V$). This produces a weighted sum, where relevant information is amplified and irrelevant noise is filtered out.
+
+## Multi-Head Attention: Seeing the Bigger Picture
+
+> **[IMAGE GENERATION FAILED]** Multi-Head Attention: running multiple self-attention mechanisms in parallel and concatenating outputs.
+>
+> **Alt:** Diagram illustrating multiple attention heads working in parallel and concatenating results.
+>
+> **Prompt:** Diagram showing input splitting into four parallel streams of attention blocks (heads), then converging into a concatenation layer and a linear output projection. Modern clean tech aesthetic.
+>
+> **Error:** 429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 59.014245792s.', 'status': 'RESOURCE_EXHAUSTED', 'details': [{'@type': 'type.googleapis.com/google.rpc.Help', 'links': [{'description': 'Learn more about Gemini API quotas', 'url': 'https://ai.google.dev/gemini-api/docs/rate-limits'}]}, {'@type': 'type.googleapis.com/google.rpc.QuotaFailure', 'violations': [{'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_input_token_count', 'quotaId': 'GenerateContentInputTokensPerModelPerMinute-FreeTier', 'quotaDimensions': {'model': 'gemini-2.5-flash-preview-image', 'location': 'global'}}, {'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash-preview-image'}}, {'quotaMetric': 'generativelanguage.googleapis.com/generate_content_free_tier_requests', 'quotaId': 'GenerateRequestsPerDayPerProjectPerModel-FreeTier', 'quotaDimensions': {'location': 'global', 'model': 'gemini-2.5-flash-preview-image'}}]}, {'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '59s'}]}}
+
+
+Multi-head attention functions by running the self-attention process multiple times in parallel across different "heads." Instead of computing one large attention map, the model projects the input queries, keys, and values into multiple lower-dimensional subspaces. Think of this as creating several independent perspectives of the same input sequence.
